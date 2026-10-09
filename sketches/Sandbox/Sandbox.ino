@@ -8,6 +8,10 @@
 // SSD1306 OLED: VCC -> 5V, GND -> GND, SDA -> A4, SCL -> A5.
 // LEDs: D4 green, D5 yellow, D6 red; each pin -> 330 ohm -> anode.
 // All LED cathodes -> GND. Smaller distance simulates rising water.
+// TMB12A05 active buzzer: + -> 5V, - -> NPN collector; emitter -> GND.
+// D3 -> 1k ohm -> base; 10k ohm from base to emitter holds it off at reset.
+// Flyback diode across buzzer: striped cathode -> +5V, anode -> collector.
+// Verify the transistor's pinout. Do NOT connect the buzzer directly to D3.
 // Libraries: Adafruit SSD1306 and its dependencies (GFX and BusIO).
 // Open the serial monitor at 115200 baud.
 const int TRIG_PIN = 9;
@@ -15,6 +19,7 @@ const int ECHO_PIN = 10;
 const int GREEN_PIN = 4;
 const int YELLOW_PIN = 5;
 const int RED_PIN = 6;
+const int BUZZER_PIN = 3;
 const unsigned long ECHO_TIMEOUT_US = 30000;
 const unsigned long SAMPLE_INTERVAL_MS = 250;
 const unsigned long FAULT_BLINK_MS = 250;
@@ -65,6 +70,28 @@ void updateLeds() {
   digitalWrite(GREEN_PIN, levelState == NORMAL);
   digitalWrite(YELLOW_PIN, levelState == WARNING);
   digitalWrite(RED_PIN, levelState == ALARM);
+}
+
+void updateBuzzer() {
+  // Active buzzer generates its own pitch: switch DC power, no tone() needed.
+  // Restart the pattern when the audible state changes.
+  const uint8_t mode = sensorFault ? 2 : (levelState == ALARM ? 1 : 0);
+  static uint8_t previousMode = 0;
+  static unsigned long patternStartMs = 0;
+  const unsigned long now = millis();
+  if (mode != previousMode) {
+    previousMode = mode;
+    patternStartMs = now;
+  }
+  const unsigned long elapsed = now - patternStartMs;
+  bool on = false;
+  if (mode == 1) {
+    on = elapsed % 500 < 200; // Alarm: 200 ms beep, 300 ms silence.
+  } else if (mode == 2) {
+    const unsigned long phase = elapsed % 2000;
+    on = phase < 150 || (phase >= 300 && phase < 450); // Fault: double chirp.
+  }
+  digitalWrite(BUZZER_PIN, on);
 }
 
 // This four-pin display has no separate reset pin (-1).
@@ -144,15 +171,19 @@ void setup() {
   pinMode(GREEN_PIN, OUTPUT);
   pinMode(YELLOW_PIN, OUTPUT);
   pinMode(RED_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
+  pinMode(BUZZER_PIN, OUTPUT);
   updateLeds();
   Serial.println(F("Level demo | Trig=D9 Echo=D10 | Green=D4 Yellow=D5 Red=D6"));
   Serial.println(F("Alarm <10 cm, clears >12; warning <=20 cm, clears >22."));
+  Serial.println(F("Buzzer=D3 via NPN | alarm: repeating beep | fault: double chirp"));
   setupDisplay();
   lastSampleMs = millis() - SAMPLE_INTERVAL_MS; // Take the first reading immediately.
 }
 
 void loop() {
   updateLeds();
+  updateBuzzer();
   const unsigned long now = millis();
   // Unsigned subtraction also works when millis() wraps around.
   if (now - lastSampleMs < SAMPLE_INTERVAL_MS) {
@@ -175,6 +206,7 @@ void loop() {
   const float distanceCm = echoUs * 0.0343f / 2.0f;
   updateState(echoUs, distanceCm);
   updateLeds();
+  updateBuzzer();
 
   Serial.print(stateLabel());
   Serial.print(F(" | "));
@@ -194,5 +226,5 @@ void loop() {
   }
   showReading(echoUs, distanceCm);
 
-  // No delay: fault blinking continues between measurements.
+  // No delay: LEDs and buzzer continue updating between measurements.
 }
