@@ -21,6 +21,9 @@ Plusivo transistors (all 3 pins, various types)
 Buzzer
 BT-5.0-Audio
 USB data cable (many various types for each end)
+Motion sensor
+Light sensor
+LED matrix
 
 
 ## Microcontrollers
