@@ -1,0 +1,6 @@
+.arduino/
+logs/
+.DS_Store
+.zed/
+scripts/
+tmp/
