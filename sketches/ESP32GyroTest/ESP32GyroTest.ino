@@ -1,7 +1,14 @@
 #include <Wire.h>
 
-// Adafruit L3GD20H breakout -> 5 V Pro Micro:
-// VIN -> VCC, GND -> GND, SDA -> 2, SCL -> 3.
+// Adafruit L3GD20H breakout -> classic ESP32 Dev Module:
+// VIN -> 3V3, GND -> GND, SDA -> GPIO21 (D21), SCL -> GPIO22 (D22).
+// This wiring assumes the actual Adafruit L3GD20H breakout, not an MPU module.
+#define GYRO_SDA_PIN 21
+#define GYRO_SCL_PIN 22
+#define SERIAL_BAUD 115200
+#define I2C_CLOCK_HZ 100000
+#define I2C_TIMEOUT_MS 25
+#define SAMPLE_INTERVAL_MS 100
 // Uses built-in Wire only. Values are angular velocity, not orientation.
 uint8_t gyroAddress = 0;
 
@@ -9,7 +16,7 @@ bool readRegisters(uint8_t address, uint8_t reg, uint8_t *data, uint8_t count) {
   Wire.beginTransmission(address);
   Wire.write(reg);
   if (Wire.endTransmission() != 0) return false;
-  if (Wire.requestFrom(address, count) != count) {
+  if (Wire.requestFrom(address, static_cast<size_t>(count)) != count) {
     while (Wire.available()) Wire.read();
     return false;
   }
@@ -86,17 +93,23 @@ bool initializeGyro() {
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(SERIAL_BAUD);
   const unsigned long started = millis();
   while (!Serial && millis() - started < 3000UL) {}
-  Wire.begin();
-  Wire.setClock(100000);
-  Wire.setWireTimeout(25000, true);
+  if (!Wire.begin(GYRO_SDA_PIN, GYRO_SCL_PIN, I2C_CLOCK_HZ)) {
+    Serial.println(F("ESP32 I2C initialization failed; check board selection and pins."));
+    while (true) delay(1000);
+  }
+  Wire.setTimeOut(I2C_TIMEOUT_MS);
+  Serial.println(F("ESP32 L3GD20H test; angular velocity, not hand angle."));
 }
 
 void loop() {
   if (!gyroAddress && !initializeGyro()) {
-    Serial.println(F("L3GD20H NOT FOUND / INIT FAILED: check power, SDA=2, SCL=3"));
+    Serial.print(F("L3GD20H NOT FOUND / INIT FAILED: check power, SDA="));
+    Serial.print(GYRO_SDA_PIN);
+    Serial.print(F(", SCL="));
+    Serial.println(GYRO_SCL_PIN);
     scanBus();
     delay(3000);
     return;
@@ -121,5 +134,5 @@ void loop() {
     Serial.print(F(" deg/s "));
   }
   Serial.println();
-  delay(100);
+  delay(SAMPLE_INTERVAL_MS);
 }

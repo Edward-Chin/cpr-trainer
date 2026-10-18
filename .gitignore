@@ -1,6 +1,5 @@
 .arduino/
 logs/
 .DS_Store
-.zed/
-scripts/
+scripts/__pycache__/
 tmp/
