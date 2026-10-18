@@ -1,17 +1,20 @@
 // Live motion measurements, not validated CPR depth or proficiency scoring.
-// HC-SR04: TRIG 9, ECHO 10. SSD1306 OLED: SDA 2, SCL 3.
-// Button: 5 to GND. Existing transistor buzzer driver: 4 (held off).
+// Classic ESP32: HC-SR04 TRIG 5, ECHO 18 through a 5 V -> 3 V divider.
+// SSD1306 OLED: SDA 21, SCL 22 (3.3 V logic). Button: 4 to GND.
+// Transistor buzzer driver: GPIO 2 (held off); do not power the buzzer from GPIO.
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include "StrokeDetector.h"
 
-#define TRIG_PIN 9
-#define ECHO_PIN 10
-#define BUZZER_PIN 4
-#define BUTTON_PIN 5
-#define OLED_SDA_PIN 2
-#define OLED_SCL_PIN 3
+#define TRIG_PIN 5
+#define ECHO_PIN 18
+#define BUZZER_PIN 2
+#define BUTTON_PIN 4
+#define OLED_SDA_PIN 21
+#define OLED_SCL_PIN 22
+#define I2C_CLOCK_HZ 100000UL
+#define I2C_TIMEOUT_MS 25
 #define OLED_RESET -1
 #define OLED_ADDR 0x3C
 #define OLED_ALT_ADDR 0x3D
@@ -62,10 +65,13 @@ void setup() {
   digitalWrite(BUZZER_PIN,LOW);pinMode(BUZZER_PIN,OUTPUT);
   digitalWrite(TRIG_PIN,LOW);pinMode(TRIG_PIN,OUTPUT);pinMode(ECHO_PIN,INPUT);
   pinMode(BUTTON_PIN,INPUT_PULLUP);Serial.begin(115200);
-  Wire.begin();Wire.setWireTimeout(25000UL,true);
-  uint8_t address=OLED_ADDR;
-  if(!acknowledges(address)) address=OLED_ALT_ADDR;
-  if(acknowledges(address)) oledReady=display.begin(SSD1306_SWITCHCAPVCC,address,true,false);
+  const bool i2cReady=Wire.begin(OLED_SDA_PIN,OLED_SCL_PIN,I2C_CLOCK_HZ);
+  Wire.setTimeOut(I2C_TIMEOUT_MS);
+  if(i2cReady) {
+    uint8_t address=OLED_ADDR;
+    if(!acknowledges(address)) address=OLED_ALT_ADDR;
+    if(acknowledges(address)) oledReady=display.begin(SSD1306_SWITCHCAPVCC,address,true,false);
+  }
   if(oledReady) display.setTextWrap(false);
 }
 

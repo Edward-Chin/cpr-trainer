@@ -10,8 +10,11 @@ is implemented. The existing buzzer driver is held off.
 
 Set `ARDUINO_SKETCH="sketches/StrokeTest"` in `arduino.env`, then use the existing
 Zed Build and upload task. Runs immediately, with or without a serial monitor.
-Pin 5 button to GND resets tracking/count; it is not a start/pause button here.
-OLED SDA=2, SCL=3; HC-SR04 TRIG=9, ECHO=10; buzzer driver=4.
+This sketch now targets the classic ESP32 Dev Module (`esp32:esp32:esp32`).
+GPIO 4 button to GND resets tracking/count; it is not a start/pause button here.
+OLED SDA=21, SCL=22; HC-SR04 TRIG=5, ECHO=18; buzzer transistor driver=2.
+Numbers are GPIO numbers, not header positions. The ESP32 Wire API explicitly
+selects SDA/SCL and uses a 25 ms transaction timeout.
 Pin definitions use `#define`. OLED address 0x3C or 0x3D is detected at startup.
 If the OLED is absent, serial measurements still run. The module must be connected
 before startup. Use Serial monitor (or monitor and save log) to inspect output.
@@ -19,6 +22,32 @@ The Capture distance CSV task now recognizes both sketches and preserves all
 columns. The graph viewer plots either format and shows stroke metrics on hover.
 DistanceCapture additionally records raw echo duration; StrokeTest records gap
 and stroke metrics. Restart the capture task after changing sketches.
+
+## ESP32 wiring and power
+
+- Supply the HC-SR04 with regulated 5 V. Connect all wired circuit grounds.
+- ECHO must pass through a voltage divider: ECHO -> 4.7 kOhm -> GPIO 18,
+  with 6.8 kOhm from GPIO 18 to GND (about 2.96 V for a 5 V echo).
+  Alternatively use 2.2 kOhm and 3.3 kOhm respectively (3.0 V).
+- Keep OLED SDA/SCL pull-ups at 3.3 V. Power a compatible OLED from 3.3 V;
+  a display that accepts 5 V power does not necessarily level-shift its I2C pins.
+- Leave the buzzer disconnected for this measurement test, or use its transistor
+  driver: buzzer + to 5 V, buzzer - to NPN collector, emitter to GND,
+  GPIO 2 through 680 Ohm to base, 10 kOhm from base to emitter. Verify the actual
+  transistor pinout. For the magnetic buzzer, add a flyback diode across it,
+  cathode/stripe to +5 V and anode to collector. The sketch holds GPIO 2 LOW.
+- GPIO 2 and 5 are ESP32 strapping pins. Do not add external circuitry that
+  forces inappropriate levels at reset; disconnect attached loads if boot/upload
+  fails. The specified low-side NPN driver pulls GPIO 2 toward GND.
+- Verify PSU rail voltage and polarity with a meter. Never feed 5 V or 9 V into
+  ESP32 3V3. Confirm the development board's VIN/5V input before supplying it.
+  Avoid connecting external power to that input while USB also powers the board
+  unless its power-isolation circuit has been verified.
+
+The photographed MB102-style PSU uses linear regulators, not a switching buck
+converter. Test the final battery-powered assembly under load; a 9 V rectangular
+battery and regulator heating may limit runtime or cause resets, especially once
+wireless communication is enabled.
 
 ## Algorithm and configurable limits
 
@@ -58,7 +87,11 @@ underestimate true travel, and peak confirmation adds delay. Values displayed to
 
 ## Validation so far
 
-Compiled for the 5 V/16 MHz Pro Micro. The exact C++ detector was replayed against
+The ESP32 port compiles with Espressif Arduino core 3.3.2: 322,271 bytes of flash
+and 22,432 bytes of static RAM. Existing desktop detector checks pass unchanged.
+This port has not been uploaded or physically verified by the assistant.
+
+The previous version compiled for the 5 V/16 MHz Pro Micro. The exact C++ detector was replayed against
 `logs/distance-20261017-200314-000342.csv`: 27 troughs between elapsed 30–45 seconds,
 median downward travel 80.5 mm. These are algorithm outputs, not ground truth.
 Replay results are saved at `logs/strokes-replay-20261017-200314.csv`.
