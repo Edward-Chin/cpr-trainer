@@ -10,7 +10,7 @@ the installed Adafruit SSD1306/GFX libraries and ESP32 Arduino core.
 2. A five-second positioning countdown runs. Button presses during it are ignored.
 3. Session starts with fresh detector/statistics and a 110 BPM metronome.
 4. Button ends the session, silences the buzzer and freezes statistics/duration.
-5. Summary, depth and rate pages rotate every ten seconds. Button repeats the
+5. Summary, BPM and depth pages rotate every ten seconds. Button repeats the
    countdown, then starts a fresh session. No automatic session timeout.
 
 The button requires release before another press; holding it cannot skip screens.
@@ -29,7 +29,10 @@ and OLED blocking calls; hardware timing still needs confirmation.
 
 The supplied draft remains as reference. The integrated version removes simulated
 sensor readings, dummy calibration, automatic stop, gyro hooks and posture scores.
-Live bars retain the draft's low/target/high zones with moving value pointers.
+Live bars are 8 pixels wide with 23-pixel moving arrow pointers. The filled high
+zone occupies rows 0–15 (yellow), the target zone is outlined, and the filled low
+zone is blue. `OLED_YELLOW_ROWS` in `Config.h` controls the physical color boundary;
+verify 16 rows on the actual panel. Colors come from the panel, not software.
 The separate **FUTURE LEAN** arrow is a static concept illustration: it does not
 measure or recommend a direction. No gyroscope, ESP-NOW or angle integration runs.
 
@@ -54,19 +57,25 @@ USB disconnected. Do not connect raw 9 V to the shared 5 V rail or ESP32 3V3.
 ## Reading the screens
 
 - Live depth is **downstroke pad travel in mm**, rate is the detector's rolling
-  BPM. Count and elapsed seconds appear beside the future-feature icon.
+  BPM. Depth appears on the left, BPM in the middle, and elapsed seconds on the
+  right. Live numbers use double-size text (time switches to small text above
+  999 seconds to fit). The future-feature icon is a small static four-way arrow.
 - Missing target, unsupported motion or stale data clears live values/pointers;
-  TARGET / RANGE / WAIT explains why. This hides stale values; detection thresholds
-  and the existing spike sensitivity have not changed.
+  dashes and absent pointers indicate unavailable measurements. Detection
+  thresholds and the existing spike sensitivity have not changed.
 - Session duration includes pauses but excludes countdown. Count includes accepted
   downstrokes only, including those for which rate is unavailable.
-- DEPTH IN: percent of accepted downstrokes between 50 and 60 mm inclusive.
-- RATE IN: percent of available rolling BPM observations between 100 and 120.
-- BOTH IN: percent meeting both targets among strokes with rate available. This
+- General page DEP: percent of accepted downstrokes between 50 and 60 mm inclusive.
+- General page BPM: percent of available rolling BPM observations between 100 and 120.
+- General page BOTH: percent meeting both targets among strokes with rate available. This
   is not time on target or a general CPR proficiency score. No observations = `--`.
-- AVG: mean. SD: population standard deviation. OFFSET: mean minus the stated
-  reference (55 mm or 110 BPM). MAE: mean absolute difference from that reference.
-  Values use the page's units, not percent. LOW/HIGH/IN are observation percentages.
+- Results show three double-size rows per page. General: BPM%, DEP%, BOTH%.
+  BPM: AVG (BPM), LOW%, HIGH%. Depth: AVG (mm), LOW%, HIGH%. The order is
+  General -> BPM -> Depth, repeating every 10 seconds. Target endpoints count
+  as in range. Missing observations display `--`, not zero.
+- SD, OFFSET, MAE, count and duration are no longer displayed on results pages.
+  The underlying accumulators are retained; detection and statistics are unchanged.
+  Pressing the button from any results page still restarts the countdown.
 - Rate statistics summarize overlapping, smoothed detector estimates, not raw
   independent cycle periods. Unavailable rates are excluded, never scored as zero.
 - Stats accumulate once per confirmed downstroke, not every repeated CSV/display
@@ -99,7 +108,7 @@ Hardware acceptance before judging:
 
 1. Confirm start screen, one press -> 5,4,3,2,1 -> session; held button does not end it.
 2. Confirm 110 BPM chirps, real depth/rate updates and clearing on target removal.
-3. Press to end: immediate silence, frozen count/duration, three pages at 10 seconds.
+3. Press to end: immediate silence, frozen results, General -> BPM -> Depth pages at 10 seconds.
 4. Restart; verify a new countdown and cleared results. End with zero strokes:
    no fabricated averages or percentages should appear.
 5. Repeat with the actual battery/PSU and secured pillow/plate fixture.
@@ -107,7 +116,7 @@ Hardware acceptance before judging:
 Compilation and desktop checks do not establish physical OLED, sound or sensor
 correctness. Existing echo glitches can still affect accepted counts/statistics.
 
-Validated on October 18: ESP32 core 3.3.2 compile succeeded (326,399 bytes flash,
+Validated on October 18: ESP32 core 3.3.2 compile succeeded (325,827 bytes flash,
 22,544 bytes static RAM); session/statistics desktop checks passed; detector copy
 matches StrokeTest exactly. This integrated sketch has not been uploaded or
 physically tested by the assistant.

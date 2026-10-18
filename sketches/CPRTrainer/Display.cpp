@@ -15,98 +15,111 @@ void center(const char *text, int y, uint8_t size = 1) {
   oled.setTextSize(1);
 }
 
-void percent(uint32_t n, uint32_t total) {
-  if (!total) oled.print(F("--"));
-  else { oled.print(uint32_t(uint64_t(n) * 100 / total)); oled.print('%'); }
+// Classic font at size 2: each character occupies 12 x 16 pixels.
+void valueAt(int x, int y, const char *text, uint8_t size = 2) {
+  oled.setTextSize(size);
+  oled.setCursor(x, y);
+  oled.print(text);
+  oled.setTextSize(1);
 }
 
-void signedValue(float v) {
-  if (v > 0.049f) oled.print('+');
-  if (fabsf(v) < 0.05f) v = 0;
-  oled.print(v, 1);
+void formatPercent(char *text, size_t capacity, uint32_t n, uint32_t total) {
+  if (!total) snprintf(text, capacity, "--");
+  else snprintf(text, capacity, "%lu%%", static_cast<unsigned long>(uint64_t(n) * 100 / total));
 }
 
-// Adapted from the teammate's three-zone bars and left-pointing indicator.
-// Empty bars have no arrow: unavailable readings must not look like zero.
+// Thin bars: filled high zone in the physical yellow band, outlined target
+// zone, filled low zone in blue. OLED colors are fixed by the panel, not code.
 void bar(int x, float value, float lo, float hi, float minimum, float maximum, bool available) {
-  const int top = 0, bottom = 39, bandTop = 12, bandBottom = 27, width = 20;
-  oled.drawRect(x, top, width, 40, SSD1306_WHITE);
-  oled.drawFastHLine(x, bandTop, width, SSD1306_WHITE);
-  oled.drawFastHLine(x, bandBottom, width, SSD1306_WHITE);
+  const int width = 8, height = 39;
+  const int bandTop = OLED_YELLOW_ROWS, bandBottom = 28;
+  static_assert(OLED_YELLOW_ROWS >= 8 && OLED_YELLOW_ROWS <= 20,
+                "Yellow band must leave room for the target zone.");
+  oled.fillRect(x, 0, width, bandTop, SSD1306_WHITE);
+  oled.drawRect(x, bandTop, width, bandBottom - bandTop, SSD1306_WHITE);
+  oled.fillRect(x, bandBottom, width, height - bandBottom, SSD1306_WHITE);
   if (!available) return;
   int y;
-  bool good = value >= lo && value <= hi;
-  if (value < lo) {
-    const int fill = constrain(int(roundf((lo - value) / (lo - minimum) * 11)), 1, 11);
-    oled.fillRect(x + 1, bandBottom + 1, width - 2, fill, SSD1306_WHITE);
-    y = bandBottom + fill;
-  } else if (value > hi) {
-    const int fill = constrain(int(roundf((value - hi) / (maximum - hi) * 11)), 1, 11);
-    oled.fillRect(x + 1, bandTop - fill, width - 2, fill, SSD1306_WHITE);
-    y = bandTop - fill;
-  } else y = bandBottom - int((value - lo) / (hi - lo) * (bandBottom - bandTop));
-  y = constrain(y, 5, bottom - 4);
-  if (good) oled.fillTriangle(x + 23, y, x + 29, y - 4, x + 29, y + 4, SSD1306_WHITE);
-  else oled.drawTriangle(x + 23, y, x + 29, y - 4, x + 29, y + 4, SSD1306_WHITE);
-  oled.drawFastHLine(x + 29, y, 6, SSD1306_WHITE);
+  if (value > hi) {
+    const float fraction = constrain((value - hi) / (maximum - hi), 0.0f, 1.0f);
+    y = bandTop - 5 - int(roundf(fraction * (bandTop - 9)));
+  } else if (value < lo) {
+    const float fraction = constrain((lo - value) / (lo - minimum), 0.0f, 1.0f);
+    y = bandBottom + 3 + int(roundf(fraction * (height - bandBottom - 7)));
+  } else {
+    y = bandBottom - 2 - int(roundf((value - lo) / (hi - lo) * (bandBottom - bandTop - 3)));
+  }
+  // Long outlined arrow: 23 pixels from tip to tail, with a 3-pixel shaft.
+  const int tip = x + width + 2, neck = tip + 8, tail = tip + 22;
+  oled.drawLine(tip, y, neck, y - 3, SSD1306_WHITE);
+  oled.drawLine(tip, y, neck, y + 3, SSD1306_WHITE);
+  oled.drawFastVLine(neck, y - 3, 3, SSD1306_WHITE);
+  oled.drawFastVLine(neck, y + 1, 3, SSD1306_WHITE);
+  oled.drawFastHLine(neck, y - 1, tail - neck + 1, SSD1306_WHITE);
+  oled.drawFastHLine(neck, y + 1, tail - neck + 1, SSD1306_WHITE);
+  oled.drawFastVLine(tail, y - 1, 3, SSD1306_WHITE);
 }
 
 void live(const Session &s, bool target, uint32_t now) {
   const auto &d = s.detector;
   const bool available = target && !d.unsupportedMotion && !d.stale(now);
   const bool rateAvailable = available && d.bpm > 0;
-  bar(2, d.bpm, RATE_LOW_BPM, RATE_HIGH_BPM, 60, 180, rateAvailable);
-  bar(46, d.downMm, DEPTH_LOW_MM, DEPTH_HIGH_MM, 0, 100, available);
-  oled.setCursor(0, 43); oled.print(F("BPM"));
-  oled.setCursor(44, 43); oled.print(F("DEP mm"));
-  oled.setCursor(0, 54);
-  if (rateAvailable) oled.print(d.bpm, 0); else oled.print(F("--"));
-  oled.setCursor(44, 54);
-  if (available) oled.print(d.downMm, 0); else oled.print(F("--"));
+  bar(2, d.downMm, DEPTH_LOW_MM, DEPTH_HIGH_MM, 0, 120, available);
+  bar(46, d.bpm, RATE_LOW_BPM, RATE_HIGH_BPM, 30, 215, rateAvailable);
+  oled.setCursor(0, 40); oled.print(F("DEP mm"));
+  oled.setCursor(44, 40); oled.print(F("BPM"));
+  char text[16];
+  if (available) snprintf(text, sizeof(text), "%.0f", d.downMm);
+  else snprintf(text, sizeof(text), "--");
+  valueAt(0, 48, text);
+  if (rateAvailable) snprintf(text, sizeof(text), "%.0f", d.bpm);
+  else snprintf(text, sizeof(text), "--");
+  valueAt(44, 48, text);
 
-  // Deliberately static concept icon, not a measured correction instruction.
-  oled.setCursor(90, 0); oled.print(F("FUTURE"));
-  oled.setCursor(96, 9); oled.print(F("LEAN"));
-  oled.drawTriangle(108, 20, 101, 27, 115, 27, SSD1306_WHITE);
-  oled.drawRect(106, 27, 5, 7, SSD1306_WHITE);
-  oled.setCursor(90, 36); oled.print('#'); oled.print(d.count > 99999 ? 99999 : d.count);
-  oled.setCursor(90, 46); oled.print(s.elapsed(now) / 1000UL); oled.print('s');
-  oled.setCursor(90, 56);
-  if (!target) oled.print(F("TARGET"));
-  else if (d.unsupportedMotion) oled.print(F("RANGE"));
-  else if (d.stale(now)) oled.print(F("WAIT"));
-  else oled.print(F("ACTIVE"));
+  // Static future-feature icon, explicitly not a measured correction.
+  oled.setCursor(92, 0); oled.print(F("FUTURE"));
+  oled.setCursor(98, 9); oled.print(F("LEAN"));
+  oled.drawFastHLine(103, 26, 13, SSD1306_WHITE);
+  oled.drawFastVLine(109, 20, 13, SSD1306_WHITE);
+  oled.fillTriangle(109, 20, 107, 22, 111, 22, SSD1306_WHITE);
+  oled.fillTriangle(109, 32, 107, 30, 111, 30, SSD1306_WHITE);
+  oled.fillTriangle(103, 26, 105, 24, 105, 28, SSD1306_WHITE);
+  oled.fillTriangle(115, 26, 113, 24, 113, 28, SSD1306_WHITE);
+  oled.setCursor(92, 40); oled.print(F("TIME s"));
+  const uint32_t seconds = s.elapsed(now) / 1000UL;
+  snprintf(text, sizeof(text), "%lu", static_cast<unsigned long>(seconds));
+  valueAt(92, 48, text, seconds <= 999 ? 2 : 1);
+}
+
+// Three large rows occupy the blue band; titles occupy the yellow band.
+void statRow(const char *label, const char *value, int y) {
+  valueAt(0, y, label);
+  valueAt(128 - int(strlen(value)) * 12, y, value);
 }
 
 void summary(const Session &s) {
-  center("SESSION COMPLETE", 0);
-  oled.setCursor(0, 12); oled.print(F("N ")); oled.print(s.stats.depth.count);
-  oled.print(F("  TIME ")); oled.print(s.durationMs / 1000UL); oled.print('s');
-  oled.setCursor(0, 23); oled.print(F("DEPTH IN "));
-  percent(s.stats.depth.inRange(), s.stats.depth.count);
-  oled.setCursor(0, 34); oled.print(F("RATE IN  "));
-  percent(s.stats.rate.inRange(), s.stats.rate.count);
-  oled.setCursor(0, 45); oled.print(F("BOTH IN  "));
-  percent(s.stats.bothInRange, s.stats.pairedCount);
-  center("BTN: RESTART  1/3", 56);
+  center("GENERAL STATS  1/3", 3);
+  char text[12];
+  formatPercent(text, sizeof(text), s.stats.rate.inRange(), s.stats.rate.count);
+  statRow("BPM", text, 16);
+  formatPercent(text, sizeof(text), s.stats.depth.inRange(), s.stats.depth.count);
+  statRow("DEP", text, 32);
+  formatPercent(text, sizeof(text), s.stats.bothInRange, s.stats.pairedCount);
+  statRow("BOTH", text, 48);
 }
 
 void metricPage(const MetricStats &m, bool depth) {
-  center(depth ? "DEPTH mm  50-60" : "RATE BPM  100-120", 0);
-  if (!m.count) center("NO DATA", 28);
-  else {
-    const float reference = depth ? DEPTH_REFERENCE_MM : RATE_REFERENCE_BPM;
-    oled.setCursor(0, 12); oled.print(F("AVG ")); oled.print(m.mean, 1);
-    oled.print(F(" SD ")); oled.print(m.sd(), 1);
-    oled.setCursor(0, 23); oled.print(F("OFFSET ")); signedValue(m.mean - reference);
-    oled.print(F(" v")); oled.print(reference, 0);
-    oled.setCursor(0, 34); oled.print(F("LOW ")); percent(m.low, m.count);
-    oled.print(F(" HIGH ")); percent(m.high, m.count);
-    oled.setCursor(0, 45); oled.print(F("IN ")); percent(m.inRange(), m.count);
-    oled.print(F(" MAE ")); oled.print(m.meanAbsoluteError(), 1);
-  }
-  center(depth ? "BTN: RESTART  2/3" : "BTN: RESTART  3/3", 56);
+  center(depth ? "DEPTH mm 50-60  3/3" : "BPM 100-120  2/3", 3);
+  char text[12];
+  if (m.count) snprintf(text, sizeof(text), "%.1f", m.mean);
+  else snprintf(text, sizeof(text), "--");
+  statRow("AVG", text, 16);
+  formatPercent(text, sizeof(text), m.low, m.count);
+  statRow("LOW", text, 32);
+  formatPercent(text, sizeof(text), m.high, m.count);
+  statRow("HIGH", text, 48);
 }
+
 }
 
 bool beginDisplay() {
@@ -147,8 +160,8 @@ void renderDisplay(const Session &s, bool target, uint32_t now) {
     case Screen::Results:
       switch (((now - s.phaseStartMs) / RESULTS_PAGE_MS) % 3) {
         case 0: summary(s); break;
-        case 1: metricPage(s.stats.depth, true); break;
-        case 2: metricPage(s.stats.rate, false); break;
+        case 1: metricPage(s.stats.rate, false); break;
+        case 2: metricPage(s.stats.depth, true); break;
       }
       break;
   }

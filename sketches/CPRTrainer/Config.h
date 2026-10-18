@@ -10,6 +10,8 @@
 #define OLED_RESET -1
 #define OLED_ADDR 0x3C
 #define OLED_ALT_ADDR 0x3D
+// Physical top yellow band on the two-color 128x64 OLED.
+#define OLED_YELLOW_ROWS 16
 #define SAMPLE_INTERVAL_MS 70UL
 #define ECHO_TIMEOUT_US 30000UL
 #define DISPLAY_INTERVAL_MS 210UL
