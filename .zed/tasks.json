@@ -1,0 +1,141 @@
+[
+  {
+    "label": "Arduino: Check setup",
+    "command": "bash",
+    "args": [
+      "scripts/arduino.sh",
+      "doctor"
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "never",
+    "save": "all"
+  },
+  {
+    "label": "Arduino: List connected boards",
+    "command": "bash",
+    "args": [
+      "scripts/arduino.sh",
+      "boards"
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "never",
+    "save": "all"
+  },
+  {
+    "label": "Arduino: Show selected board options",
+    "command": "bash",
+    "args": [
+      "scripts/arduino.sh",
+      "board-details"
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "never",
+    "save": "all"
+  },
+  {
+    "label": "Arduino: Build",
+    "command": "bash",
+    "args": [
+      "scripts/arduino.sh",
+      "build"
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "never",
+    "save": "all"
+  },
+  {
+    "label": "Arduino: Clean rebuild",
+    "command": "bash",
+    "args": [
+      "scripts/arduino.sh",
+      "rebuild"
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "never",
+    "save": "all"
+  },
+  {
+    "label": "Arduino: Build and upload",
+    "command": "bash",
+    "args": [
+      "scripts/arduino.sh",
+      "upload"
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "never",
+    "save": "all"
+  },
+  {
+    "label": "Arduino: Serial monitor (Ctrl+C to stop)",
+    "command": "bash",
+    "args": [
+      "scripts/arduino.sh",
+      "monitor"
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "never",
+    "save": "all"
+  },
+  {
+    "label": "Arduino: Serial monitor and save log (Ctrl+C to stop)",
+    "command": "bash",
+    "args": [
+      "scripts/arduino.sh",
+      "monitor-log"
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "never",
+    "save": "all"
+  },
+  {
+    "label": "Arduino: Capture distance CSV (Ctrl+C to stop)",
+    "command": "bash",
+    "args": [
+      "scripts/arduino.sh",
+      "capture-distance"
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "never",
+    "save": "all"
+  },
+  {
+    "label": "Arduino: View distance CSV graph",
+    "command": "open",
+    "args": [
+      "scripts/view-distance.html"
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "never",
+    "save": "all"
+  }
+]
