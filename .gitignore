@@ -1,5 +1,9 @@
-.arduino/
-logs/
 .DS_Store
-scripts/__pycache__/
-tmp/
+__pycache__/
+/.arduino/
+/logs/
+/tmp/
+/event-info/
+/arduino.env
+/.zed/*
+!/.zed/tasks.json

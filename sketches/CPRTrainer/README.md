@@ -1,6 +1,6 @@
 # CPRTrainer: integrated ESP32 prototype
 
-Build/upload with the existing Zed tasks; `arduino.env` selects this sketch.
+Follow the [setup instructions](../../README.md#build-and-run) to create your local `arduino.env` and build or upload.
 Stop serial capture/monitor before uploading. No new libraries are needed beyond
 the installed Adafruit SSD1306/GFX libraries and ESP32 Arduino core.
 
@@ -24,11 +24,9 @@ and OLED blocking calls; hardware timing still needs confirmation.
 - `Config.h`: pin `#define`s, timing and target settings.
 - `Hardware.h/.cpp`: button debounce, HC-SR04 sampling, metronome, CSV.
 - `Session.h`: state transitions and streaming statistics; desktop-testable.
-- `Display.h/.cpp`: real OLED rendering, adapted from `tmp/cpr_trainer.ino`.
-- `StrokeDetector.h`: byte-for-byte copy of the current StrokeTest detector.
+- `Display.h/.cpp`: live feedback and results pages.
+- `StrokeDetector.h`: detects reversals and estimates stroke depth and rate.
 
-The supplied draft remains as reference. The integrated version removes simulated
-sensor readings, dummy calibration, automatic stop, gyro hooks and posture scores.
 Live bars are 8 pixels wide with 23-pixel moving arrow pointers. The filled high
 zone occupies rows 0–15 (yellow), the target zone is outlined, and the filled low
 zone is blue. `OLED_YELLOW_ROWS` in `Config.h` controls the physical color boundary;
@@ -104,7 +102,7 @@ c++ -std=c++11 tests/cpr_session_checks.cpp -o /tmp/cpr-session-checks
 /tmp/cpr-session-checks
 ```
 
-Hardware acceptance before judging:
+Hardware checks:
 
 1. Confirm start screen, one press -> 5,4,3,2,1 -> session; held button does not end it.
 2. Confirm 110 BPM chirps, real depth/rate updates and clearing on target removal.
@@ -115,8 +113,3 @@ Hardware acceptance before judging:
 
 Compilation and desktop checks do not establish physical OLED, sound or sensor
 correctness. Existing echo glitches can still affect accepted counts/statistics.
-
-Validated on October 18: ESP32 core 3.3.2 compile succeeded (325,827 bytes flash,
-22,544 bytes static RAM); session/statistics desktop checks passed; detector copy
-matches StrokeTest exactly. This integrated sketch has not been uploaded or
-physically tested by the assistant.
